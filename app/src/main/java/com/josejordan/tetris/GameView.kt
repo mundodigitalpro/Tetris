@@ -8,7 +8,6 @@ import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import com.josejordan.tetris.Board
-import java.lang.Thread.sleep
 
 
 class GameView(context: Context) : SurfaceView(context), Runnable {
@@ -16,7 +15,8 @@ class GameView(context: Context) : SurfaceView(context), Runnable {
     private val paint: Paint = Paint()
     private val holder: SurfaceHolder = getHolder()
     private var isRunning = false
-    private val board: Board = Board()
+    private var gameOver = false
+    private val board: Board = Board(this)
 
     private val handler = Handler(Looper.getMainLooper())
 
@@ -24,6 +24,9 @@ class GameView(context: Context) : SurfaceView(context), Runnable {
         thread = Thread(this)
         paint.isAntiAlias = true
     }
+    fun gameOver() {
+       gameOver = true
+   }
 
     private val updateInterval: Long = 500 // Agrega esto al principio de la clase GameView
 
@@ -39,7 +42,7 @@ class GameView(context: Context) : SurfaceView(context), Runnable {
                 holder.unlockCanvasAndPost(canvas)
             }
 
-            if (currentTime - lastUpdateTime >= updateInterval) {
+            if (!gameOver && currentTime - lastUpdateTime >= updateInterval) {
                 lastUpdateTime = currentTime
                 handler.post(this::update)
             }
@@ -47,10 +50,20 @@ class GameView(context: Context) : SurfaceView(context), Runnable {
     }
 
 
-
     private fun drawGame(canvas: Canvas) {
         canvas.drawColor(Color.BLACK)
         board.draw(canvas, paint)
+
+        if (gameOver) { // mostrar mensaje "GAME OVER" si el juego ha terminado
+            val centerX = canvas.width / 2f
+            val centerY = canvas.height / 2f
+
+            paint.textSize = 100f
+            paint.color = Color.WHITE
+            paint.textAlign = Paint.Align.CENTER
+            canvas.drawText("GAME OVER", centerX, centerY, paint)
+        }
+
     }
 
     private fun update() {
@@ -64,7 +77,7 @@ class GameView(context: Context) : SurfaceView(context), Runnable {
         board.draw(canvas, paint)
     }
 
-    override fun onTouchEvent(event: MotionEvent): Boolean {
+/*    override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
                 if (event.x < width / 2) {
@@ -74,13 +87,42 @@ class GameView(context: Context) : SurfaceView(context), Runnable {
                 }
                 invalidate()
             }
+
             MotionEvent.ACTION_UP -> {
                 board.rotate()
                 invalidate()
             }
         }
         return true
+    }*/
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                if (!gameOver) { // Agregado
+                    if (event.x < width / 2) {
+                        board.moveLeft()
+                    } else {
+                        board.moveRight()
+                    }
+                    invalidate()
+                } else {
+                    // Reiniciar juego
+                    board.restart()
+                    gameOver = false
+                    invalidate()
+                }
+            }
+            MotionEvent.ACTION_UP -> {
+                if (!gameOver) { // Agregado
+                    board.rotate()
+                    invalidate()
+                }
+            }
+        }
+        return true
     }
+
 
     fun resume() {
         isRunning = true
@@ -91,5 +133,6 @@ class GameView(context: Context) : SurfaceView(context), Runnable {
         isRunning = false
         thread.join()
     }
+
 }
 
